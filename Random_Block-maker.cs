@@ -140,7 +140,7 @@ public class Script_Instance : GH_ScriptInstance
     A = prim;
   }
 
-  // <Custom additional code> 
+  // FUNCTIONS
   public static double clamp(double num, double min_value, double max_value) {
     num = Math.Max(Math.Min(num, max_value), min_value);
     return num;
@@ -189,5 +189,5 @@ public class Script_Instance : GH_ScriptInstance
       }
     }
   }
-  // </Custom additional code> 
+  // FUNCTIONS
 }
