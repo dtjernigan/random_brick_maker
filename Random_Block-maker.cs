@@ -52,7 +52,7 @@ public class Script_Instance : GH_ScriptInstance
   /// Output parameters as ref arguments. You don't have to assign output parameters,
   /// they will have a default value.
   /// </summary>
-  private void RunScript(int seed, int w_num, int h_num, int w_thres, int w_brick_min, int w_brick_max, int h_brick_min, int h_brick_max, ref object A, ref object B)
+  private void RunScript(int seed, int w_num, int h_num, int w_thres, int w_brick_min, int w_brick_max, int h_brick_min, int h_brick_max, ref object A)
   {
     Random rnd = new Random();
 
@@ -61,26 +61,14 @@ public class Script_Instance : GH_ScriptInstance
 
     int x_sum = 0;
     int y_sum = 0;
-    int method1 = 0;
 
     for (int i = 0; i < w_num; i++) {
-      int width = Convert.ToInt16(Math.Ceiling(clamp((rnd.Next(1000) * 0.001) * w_brick_max, w_brick_min, w_brick_max)));
-      if (width % 2 > 0){
-        width += 1;
-      }
-      int height = Convert.ToInt16(Math.Ceiling(clamp((rnd.Next(1000) * 0.001) * h_brick_max, h_brick_min, h_brick_max)));
-      if (height % 2 > 0){
-        height += 1;
-      }
+      int width = Width_Height(w_brick_min, w_brick_max, (rnd.Next(1000) * 0.001));
+      int height = Width_Height(h_brick_min, h_brick_max, (rnd.Next(1000) * 0.001));
+      List<List<double>> none_LowPts = new List<List<double>>();
 
-      Point3d pt0 = new Point3d(x_sum, y_sum, 0);
-      Point3d pt1 = new Point3d(x_sum + width, y_sum, 0);
-      Point3d pt2 = new Point3d(x_sum + width, y_sum + height, 0);
-      Point3d pt3 = new Point3d(x_sum, y_sum + height, 0);
-
+      add_Prim_add_LowPt(prim, none_LowPts, x_sum, y_sum, x_sum, y_sum, width, height);
       x_sum = x_sum + width;
-
-      prim.Add(Rhino.Geometry.Brep.CreateFromCornerPoints(pt0, pt1, pt2, pt3, 0.01));
     }
 
     for (int a = 0; a < prim.Count; a++) {
@@ -92,16 +80,11 @@ public class Script_Instance : GH_ScriptInstance
       int low = lowest_value(low_pts);
       int pprim = 0;
       int nprim = 0;
-
-      int height = Convert.ToInt16(Math.Ceiling(clamp((rnd.Next(1000) * 0.001) * h_brick_max, h_brick_min, h_brick_max)));
-      if (height % 2 > 0){
-        height += 1;
-      }
+      int height = Width_Height(h_brick_min, h_brick_max, (rnd.Next(1000) * 0.001));
 
       for (int l = 0; l < prim.Count; l++) {
         List<double> test = new List<double>(new double[] { prim[l].Vertices[3].Location.X, prim[l].Vertices[3].Location.Y, 0 });
         bool trt = System.Linq.Enumerable.SequenceEqual(low_pts[low], test);
-
         if (trt) {
           pprim = l;
           List<double> test2 = new List<double>(new double[] { prim[l].Vertices[2].Location.X, prim[l].Vertices[2].Location.Y, 0 });
@@ -116,132 +99,45 @@ public class Script_Instance : GH_ScriptInstance
         }
       }
 
-
       if (nprim > 0) {
-        List<double> ptt = new List<double>(new double[] { prim[nprim].Vertices[3].Location.X, prim[nprim].Vertices[3].Location.Y, 0 });
-        int cnt = 0;
+        bool found_LowPt = false;
+        double neighbor_dist = Math.Abs(prim[pprim].Vertices[0].Location.X - prim[nprim].Vertices[1].Location.X);
+        
+        List<double> find_Pt = new List<double>(new double[] { prim[nprim].Vertices[3].Location.X, prim[nprim].Vertices[3].Location.Y, 0 });
         for (int q = 0; q < low_pts.Count; q++) {
-          bool trt6 = System.Linq.Enumerable.SequenceEqual(ptt, low_pts[q]);
-          if ( trt6 ){
-            cnt += 1;
+          found_LowPt = System.Linq.Enumerable.SequenceEqual(find_Pt, low_pts[q]);
+          if (found_LowPt) {
+            break;
           }
         }
 
-        double testt = Math.Abs(prim[pprim].Vertices[0].Location.X - prim[nprim].Vertices[1].Location.X);
-        if (testt > w_thres && cnt > 0) {
-          //Print("Method 1");
-          method1 += 1;
-
-          int height1 = Convert.ToInt16(Math.Ceiling(clamp((rnd.Next(1000) * 0.001) * h_brick_max, h_brick_min, h_brick_max)));
-          if (height1 % 2 > 0){
-            height1 += 1;
-          }
-          int height2 = Convert.ToInt16(Math.Ceiling(clamp((rnd.Next(1000) * 0.001) * h_brick_max, h_brick_min, h_brick_max)));
-          if (height2 % 2 > 0){
-            height2 += 1;
-          }
+        if (found_LowPt && neighbor_dist > w_thres ) {
+          int width = Width_Height(w_brick_min, w_brick_max, (rnd.Next(1000) * 0.001));
+          int height1 = Width_Height(h_brick_min, h_brick_max, (rnd.Next(1000) * 0.001));
+          int height2 = Width_Height(h_brick_min, h_brick_max, (rnd.Next(1000) * 0.001));
 
           double val = Math.Abs(prim[pprim].Vertices[3].Location.X - prim[nprim].Vertices[2].Location.X) * (rnd.Next(15, 85) * 0.01);
           double halfx = prim[pprim].Vertices[3].Location.X + val;
 
-          List<double> p10 = new List<double>(new double[] {prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[3].Location.Y , 0});
-          List<double> p11 = new List<double>(new double[] {halfx , prim[pprim].Vertices[2].Location.Y , 0});
-          List<double> p12 = new List<double>(new double[] {halfx, prim[pprim].Vertices[2].Location.Y + height1, 0});
-          List<double> p13 = new List<double>(new double[] {prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[2].Location.Y + height1 , 0});
+          add_Prim_add_LowPt(prim, low_pts, prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[3].Location.Y, halfx, prim[pprim].Vertices[2].Location.Y, 0, height1);
+          add_Prim_add_LowPt(prim, low_pts, halfx, prim[pprim].Vertices[2].Location.Y, prim[nprim].Vertices[2].Location.X, prim[nprim].Vertices[2].Location.Y, 0, height2);
 
-          List<double> p20 = new List<double>(new double[] {halfx , prim[pprim].Vertices[2].Location.Y , 0});
-          List<double> p21 = new List<double>(new double[] {prim[nprim].Vertices[2].Location.X, prim[nprim].Vertices[2].Location.Y , 0});
-          List<double> p22 = new List<double>(new double[] {prim[nprim].Vertices[2].Location.X, prim[nprim].Vertices[2].Location.Y + height2 , 0});
-          List<double> p23 = new List<double>(new double[] {halfx, prim[pprim].Vertices[2].Location.Y + height2 , 0});
-
-          Point3d pt10 = new Point3d(p10[0], p10[1], 0);
-          Point3d pt11 = new Point3d(p11[0], p11[1], 0);
-          Point3d pt12 = new Point3d(p12[0], p12[1], 0);
-          Point3d pt13 = new Point3d(p13[0], p13[1], 0);
-
-          Point3d pt20 = new Point3d(p20[0], p20[1], 0);
-          Point3d pt21 = new Point3d(p21[0], p21[1], 0);
-          Point3d pt22 = new Point3d(p22[0], p22[1], 0);
-          Point3d pt23 = new Point3d(p23[0], p23[1], 0);
-
-          prim.Add(Rhino.Geometry.Brep.CreateFromCornerPoints(pt10, pt11, pt12, pt13, 0.01));
-          prim.Add(Rhino.Geometry.Brep.CreateFromCornerPoints(pt20, pt21, pt22, pt23, 0.01));
-
-          low_pts.Add(p13);
-          low_pts.Add(p23);
-
-          List<double> pttt = new List<double>(new double[] {prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[3].Location.Y, 0});
-          for (int s = 0; s < low_pts.Count; s++) {
-            bool trt2 = System.Linq.Enumerable.SequenceEqual(low_pts[s], pttt);
-            if ( trt2 ){
-              low_pts.RemoveAt(s);
-              //Print("Remove 1 - 1");
-            }
-          }
-
-          List<double> ptttt = new List<double>(new double[] {prim[nprim].Vertices[3].Location.X, prim[nprim].Vertices[3].Location.Y, 0});
-          for (int t = 0; t < low_pts.Count; t++) {
-            bool trt3 = System.Linq.Enumerable.SequenceEqual(low_pts[t], ptttt);
-            if ( trt3 ){
-              low_pts.RemoveAt(t);
-              //Print("Remove 1 - 2");
-            }
-          }
+          remove_LowPt(low_pts, prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[3].Location.Y);
+          remove_LowPt(low_pts, prim[nprim].Vertices[3].Location.X, prim[nprim].Vertices[3].Location.Y);
         }
+
         else {
-          //Print("Method 2");
-          List<double> p0 = new List<double>(new double[] {prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[3].Location.Y, 0});
-          List<double> p1 = new List<double>(new double[] {prim[pprim].Vertices[2].Location.X, prim[pprim].Vertices[2].Location.Y, 0});
-          List<double> p2 = new List<double>(new double[] {prim[pprim].Vertices[2].Location.X, prim[pprim].Vertices[2].Location.Y + height, 0});
-          List<double> p3 = new List<double>(new double[] {prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[2].Location.Y + height, 0});
-
-          Point3d pt0 = new Point3d(p0[0], p0[1], 0);
-          Point3d pt1 = new Point3d(p1[0], p1[1], 0);
-          Point3d pt2 = new Point3d(p2[0], p2[1], 0);
-          Point3d pt3 = new Point3d(p3[0], p3[1], 0);
-
-          prim.Add(Rhino.Geometry.Brep.CreateFromCornerPoints(pt0, pt1, pt2, pt3, 0.01));
-
-          for (int s = 0; s < low_pts.Count; s++) {
-            bool trt4 = System.Linq.Enumerable.SequenceEqual(low_pts[s], low_pts[low]);
-            if ( trt4 ){
-              low_pts.RemoveAt(s);
-              //Print("Remove 2");
-            }
-          }
-
-          low_pts.Add(p3);
+          add_Prim_add_LowPt(prim, low_pts, prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[3].Location.Y, prim[pprim].Vertices[2].Location.X, prim[pprim].Vertices[2].Location.Y, 0, height);
+          remove_LowPt(low_pts, low_pts[low][0], low_pts[low][1]);
         }
       }
       else {
-        //Print("Method 3");
-        List<double> p0 = new List<double>(new double[] {prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[3].Location.Y, 0});
-        List<double> p1 = new List<double>(new double[] {prim[pprim].Vertices[2].Location.X, prim[pprim].Vertices[2].Location.Y, 0});
-        List<double> p2 = new List<double>(new double[] {prim[pprim].Vertices[2].Location.X, prim[pprim].Vertices[2].Location.Y + height, 0});
-        List<double> p3 = new List<double>(new double[] {prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[2].Location.Y + height, 0});
-
-        Point3d pt0 = new Point3d(p0[0], p0[1], 0);
-        Point3d pt1 = new Point3d(p1[0], p1[1], 0);
-        Point3d pt2 = new Point3d(p2[0], p2[1], 0);
-        Point3d pt3 = new Point3d(p3[0], p3[1], 0);
-
-        prim.Add(Rhino.Geometry.Brep.CreateFromCornerPoints(pt0, pt1, pt2, pt3, 0.01));
-
-        for (int s = 0; s < low_pts.Count; s++) {
-          bool trt5 = System.Linq.Enumerable.SequenceEqual(low_pts[s], low_pts[low]);
-          if ( trt5 ){
-            low_pts.RemoveAt(s);
-          }
-        }
-
-        low_pts.Add(p3);
+        add_Prim_add_LowPt(prim, low_pts, prim[pprim].Vertices[3].Location.X, prim[pprim].Vertices[3].Location.Y, prim[pprim].Vertices[2].Location.X, prim[pprim].Vertices[2].Location.Y, 0, height);
+        remove_LowPt(low_pts, low_pts[low][0], low_pts[low][1]);
       }
     }
 
-
     A = prim;
-    B = method1;
-
   }
 
   // <Custom additional code> 
@@ -261,6 +157,37 @@ public class Script_Instance : GH_ScriptInstance
       }
     }
     return id;
+  }
+
+  public static int Width_Height(int brick_Min, int brick_Max, double factor) {
+    int WH_Calc = Convert.ToInt32(Math.Ceiling(clamp((factor) *brick_Max, brick_Min, brick_Max)));
+    if (WH_Calc % 2 > 0){
+      WH_Calc += 1;
+    }
+    return WH_Calc;
+  }
+
+  public static void add_Prim_add_LowPt(List<Brep> prim_List, List<List<double>> low_pts_List, double pos_xx, double pos_xy, double pos_yx, double pos_yy, int width_Add, int height_Add) {
+    Point3d p3d_xx = new Point3d(pos_xx, pos_xy, 0);
+    Point3d p3d_xy = new Point3d(pos_yx + width_Add, pos_yy, 0);
+    Point3d p3d_yx = new Point3d(pos_yx + width_Add, pos_yy + height_Add, 0);
+    Point3d p3d_yy = new Point3d(pos_xx, pos_yy + height_Add, 0);
+
+    prim_List.Add(Rhino.Geometry.Brep.CreateFromCornerPoints(p3d_xx, p3d_xy, p3d_yx, p3d_yy, 0.01));
+    if (low_pts_List.Count > 0){
+      List<double> new_Low_pt = new List<double>(new double[] {pos_xx, pos_yy + height_Add, 0});
+      low_pts_List.Add(new_Low_pt);
+    }
+  }
+
+  public static void remove_LowPt(List<List<double>> low_pts_List, double pos_xx, double pos_xy) {
+    List<double> remove_Pt = new List<double>(new double[] {pos_xx, pos_xy, 0});
+    for (int s = 0; s < low_pts_List.Count; s++) {
+      bool bool_test = System.Linq.Enumerable.SequenceEqual(low_pts_List[s], remove_Pt);
+      if ( bool_test ){
+        low_pts_List.RemoveAt(s);
+      }
+    }
   }
   // </Custom additional code> 
 }
